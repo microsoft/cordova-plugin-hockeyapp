@@ -4,6 +4,7 @@ import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.PluginResult;
 import org.apache.cordova.PluginResult.Status;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -16,16 +17,18 @@ import net.hockeyapp.android.LoginManagerListener;
 import net.hockeyapp.android.Tracking;
 import net.hockeyapp.android.UpdateManager;
 
-import java.text.SimpleDateFormat;
+import java.lang.RuntimeException;
+import java.lang.Runnable;
+import java.lang.StackTraceElement;
+import java.lang.StringBuilder;
+import java.lang.Thread;
+
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Iterator;
 import java.util.Map;
-import java.lang.RuntimeException;
-import java.lang.Runnable;
-import java.lang.StringBuilder;
-import java.lang.Thread;
+
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
 
 public class HockeyApp extends CordovaPlugin {
 
@@ -140,6 +143,46 @@ public class HockeyApp extends CordovaPlugin {
                     return success;
                 } catch (JSONException e) {
                     callbackContext.error("failed to parse metadata. Ignoring....");
+                    return false;
+                }
+            } else {
+                callbackContext.error("cordova hockeyapp plugin not initialized, call start() first");
+                return false;
+            }
+        }
+        
+        
+        if (action.equals("logJavascriptException")) {
+            if(initialized) {
+                try {
+                    String message = args.optString(0);
+                    String fileUrl = args.optString(1);
+                    int line = args.optInt(2);
+                    int col = args.optInt(3);
+                    String errorObjectJson = args.optString(4);
+                    
+                    JSONObject errorObject = new JSONObject(errorObject);
+                    ArrayList<StackTraceElement> stack = new ArrayList<StackTraceElement>();
+
+                    String[] rawStack = errorObject.optString("stack").split("\\r?\\n");
+                    for (String rawStackFrame : rawStack) {
+                        String[] parsedStackFrame = rawStackFrame.split("\\(\\):");
+                        String methodName = parsedStackFrame[0];
+                        String fileName = parsedStackFrame[1];
+                        int line = Integer.parseInt(parsedStackFrame[2]);
+                        
+                        stack.push(new StackTraceElement("Javascript", methodName, fileName, line));
+                    }
+                    
+                    String fullMessage = fileUrl + ": " + line + ", " + col + "\n" + message;
+                    
+                    Throwable jsError = new Throwable(fullMessage);
+                    jsError.setStackTrace(stack.toArray());
+                    
+                    ExceptionHandler.saveException(jsError, this.crashListener);
+                    callbackContext.success();
+                } catch (JSONException e) {
+                    callbackContext.error("failed to parse error data. Error is not logged!");
                     return false;
                 }
             } else {

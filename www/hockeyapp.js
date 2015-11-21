@@ -1,7 +1,20 @@
 var exec = require('cordova/exec');
 
 var hockeyapp = {
-    start: function(success, failure, appId, autoSend, loginMode, ignoreDefaultHandler) {
+    start: function (success, failure, appId, autoSend, loginMode, ignoreDefaultHandler) {
+        var _this = this;
+        window.onerror = function (errorMessage, url, lineNumber, columnNumber, errorObject) {
+            var error = {
+                message: errorMessage,
+                url: url,
+                line: lineNumber,
+                column: columnNumber,
+                object: errorObject
+            };
+            
+            _this.logJavascriptException(function() {}, function () {}, error);
+        };
+        
         autoSend = (autoSend === true || autoSend === "true");
         loginMode = loginMode || hockeyapp.loginMode.ANONYMOUS;
         ignoreDefaultHandler = ignoreDefaultHandler || false;
@@ -19,8 +32,12 @@ var hockeyapp = {
     addMetaData: function (success, failure, data) {
         exec(success, failure, "HockeyApp", "addMetaData", [JSON.stringify(data)]);
     },
-    verifyLogin: function(success, failure, appSecret) {
+    verifyLogin: function (success, failure, appSecret) {
         exec(success, failure, "HockeyApp", "verifyLogin", [appSecret]);
+    },
+    logJavascriptException: function (success, failure, error) {
+        var parsedError = [error.message, error.url, error.line, error.column, JSON.stringify(error.object)];
+        exec(success, failure, "HockeyApp", "logJavascriptException", parsedError);
     },
     
     // Valid loginMode values
