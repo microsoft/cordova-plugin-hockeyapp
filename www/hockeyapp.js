@@ -9,7 +9,7 @@ var hockeyapp = {
                 url: url,
                 line: lineNumber,
                 column: columnNumber,
-                object: errorObject
+                stack: errorObject.stack
             };
             
             _this.logJavascriptException(function() {}, function () {}, error);
@@ -36,7 +36,7 @@ var hockeyapp = {
         exec(success, failure, "HockeyApp", "verifyLogin", [appSecret]);
     },
     logJavascriptException: function (success, failure, error) {
-        var parsedError = [error.message, error.url, error.line, error.column, JSON.stringify(error.object)];
+        var parsedError = [error.message, error.url, error.line, error.column, error.stack];
         exec(success, failure, "HockeyApp", "logJavascriptException", parsedError);
     },
     

@@ -11,6 +11,7 @@ import org.json.JSONObject;
 
 import net.hockeyapp.android.CrashManager;
 import net.hockeyapp.android.CrashManagerListener;
+import net.hockeyapp.android.ExceptionHandler;
 import net.hockeyapp.android.FeedbackManager;
 import net.hockeyapp.android.LoginManager;
 import net.hockeyapp.android.LoginManagerListener;
@@ -154,37 +155,40 @@ public class HockeyApp extends CordovaPlugin {
         
         if (action.equals("logJavascriptException")) {
             if(initialized) {
-                try {
-                    String message = args.optString(0);
-                    String fileUrl = args.optString(1);
-                    int line = args.optInt(2);
-                    int col = args.optInt(3);
-                    String errorObjectJson = args.optString(4);
-                    
-                    JSONObject errorObject = new JSONObject(errorObject);
-                    ArrayList<StackTraceElement> stack = new ArrayList<StackTraceElement>();
+                String message = args.optString(0);
+                String fileUrl = args.optString(1);
+                int line = args.optInt(2);
+                int col = args.optInt(3);
+                String stringStack = args.optString(4);
 
-                    String[] rawStack = errorObject.optString("stack").split("\\r?\\n");
-                    for (String rawStackFrame : rawStack) {
-                        String[] parsedStackFrame = rawStackFrame.split("\\(\\):");
-                        String methodName = parsedStackFrame[0];
-                        String fileName = parsedStackFrame[1];
-                        int line = Integer.parseInt(parsedStackFrame[2]);
-                        
-                        stack.push(new StackTraceElement("Javascript", methodName, fileName, line));
+                ArrayList<StackTraceElement> stack = new ArrayList<StackTraceElement>();
+
+                String[] rawStack = stringStack.split("\\r?\\n");
+                
+                // start at 1 to skip over first element, which is error message and not a stack frame
+                for (int i = 1; i < rawStack.length; ++i) {
+                    String rawStackFrame = rawStack[i];
+                    String[] parsedStackFrame = rawStackFrame.split("\\(|\\)|(?!:/):");
+                    String methodName = parsedStackFrame[0].trim();
+                    String fileName = parsedStackFrame[1].trim();
+                    int stackLine = 0;
+                    
+                    // there exist stack frames with no line number (ie native)
+                    if (parsedStackFrame.length > 2) {
+                        stackLine = Integer.parseInt(parsedStackFrame[2]);
                     }
-                    
-                    String fullMessage = fileUrl + ": " + line + ", " + col + "\n" + message;
-                    
-                    Throwable jsError = new Throwable(fullMessage);
-                    jsError.setStackTrace(stack.toArray());
-                    
-                    ExceptionHandler.saveException(jsError, this.crashListener);
-                    callbackContext.success();
-                } catch (JSONException e) {
-                    callbackContext.error("failed to parse error data. Error is not logged!");
-                    return false;
+
+                    stack.add(new StackTraceElement("Javascript", methodName, fileName, stackLine));
                 }
+
+                String fullMessage = fileUrl + ": " + line + ", " + col + "\n" + message;
+
+                StackTraceElement[] stackArray = {};
+                Throwable jsError = new Throwable(fullMessage);
+                jsError.setStackTrace(stack.toArray(stackArray));
+
+                ExceptionHandler.saveException(jsError, this.crashListener);
+                callbackContext.success();
             } else {
                 callbackContext.error("cordova hockeyapp plugin not initialized, call start() first");
                 return false;
