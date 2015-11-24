@@ -47,15 +47,40 @@
             initialized = YES;
             pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
         } else {
-            // Non-anonymous validation will crash the app, so return an error to indicate
-            // what is actually happening
-            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"hockeyapp cordova plugin: non-anonymous app validation not currently supported"];
+            // We will use manual mode for identification/authentication, since we do not want to callback
+            // into the JS code until we have a definitive answer as to the success of the operation.
+            [[BITHockeyManager sharedHockeyManager].authenticator identifyWithCompletion:
+                ^(BOOL identified, NSError *identifyError) {
+                    if (!identified) {
+                        CDVPluginResult *identifyResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR];
+                        [self.commandDelegate sendPluginResult:identifyResult callbackId:command.callbackId];
+                        return;
+                    }
+                    
+                    [[BITHockeyManager sharedHockeyManager].authenticator validateWithCompletion:
+                        ^(BOOL validated, NSError *validateError) {
+                            CDVPluginResult *validateResult = nil;
+        
+                            if (!validated) {
+                                validateResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR];
+                                [self.commandDelegate sendPluginResult:validateResult callbackId:command.callbackId];
+                                return;
+                            }
+                            
+                            validateResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+                            initialized = YES;
+                            [self.commandDelegate sendPluginResult:validateResult callbackId:command.callbackId];                        
+                        }
+                    ];
+                }
+            ];
+            
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_NO_RESULT];
+            [pluginResult setKeepCallbackAsBool:YES];
         }
-    } else {
-        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"hockeyapp cordova plugin: missing arguments!"];
     }
-
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];    
 }
 
 - (void) feedback:(CDVInvokedUrlCommand*)command
