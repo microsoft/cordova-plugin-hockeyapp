@@ -52,6 +52,7 @@
             <feature name="HockeyApp">
                 <param name="ios-package" value="HockeyApp"/>
             </feature>
+            <build-property name="ENABLE_BITCODE" value="NO"/>
         </config-file>
 
         <header-file src="src/ios/HockeyApp.h" />
