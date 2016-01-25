@@ -129,6 +129,25 @@
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
+- (void) logJavascriptException:(CDVInvokedUrlCommand *)command {
+    NSArray *arguments = command.arguments;
+    CDVPluginResult* pluginResult = nil
+    
+    if(initialized == YES) {
+        NSString* message = [arguments objectAtIndex:0];
+        NSString* url = [arguments objectAtIndex:1];
+        NSInteger* row = [[arguments objectAtIndex:2] intValue];
+        NSInteger* col = [[arguments objectAtIndex:3] intValue];
+        NSString* rawStack = [arguments objectAtIndex:4];
+        
+        
+    }
+    else {
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"hockeyapp cordova plugin is not started, call hockeyapp.start(successcb, errorcb, hockeyapp_id) first!"];
+    }
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+}
+
 #pragma mark - BITCrashManagerDelegate
 
 - (NSString *)applicationLogForCrashManager:(BITCrashManager *)crashManager {
